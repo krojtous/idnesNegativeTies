@@ -1,33 +1,25 @@
 #make_graph_classic.R
 #Script makes data matrix for analysis with negative ties
 
+#LOAD PACKAGES AND FUNCTIONS
+require(igraph)
+source("./functions/transformData.R")
+
+
+#BASIC SETTINGS
 YEAR = 2015
-MONTH = 10
-
 stats = data.frame()
+TO_DIVIDE = 8
 
 
-
-makeSignedGraph = function(YEAR, MONTH){
-  TO_DIVIDE = 8
-  require(igraph)
-  source("./functions/transformData.R")
+for(MONTH in c(1:12)){
+  #STATUS INFO
+  cat(paste0(MONTH,", ", YEAR,"\n"))
   
-  
-
   #LOAD DATA
-  relations = read.csv (paste0("./../data/",YEAR,"/relations_",YEAR,"_", MONTH,".csv"), encoding="UTF-8")
-  comments  = read.csv (paste0("./../data/",YEAR,"/comments_",YEAR,"_", MONTH,".csv"), encoding = "utf8")
-  articles  = read.csv (paste0("./../data/",YEAR,"/articles_",YEAR,"_", MONTH,".csv"), encoding="UTF-8")
-  
-  
-  #SELECT REFUGGE TAGS
-  # Příliv uprchlíků do Evropy
-  # Uprchlíci
-  articles_id = unique(as.vector(articles[articles$tag %in% c("Příliv uprchlíků do Evropy", "Uprchlíci"),"article_id"]))
-  
-  relations = relations[which(relations$article_id %in% articles_id),]
-  comments = comments[which(comments$article_id %in% articles_id),]
+  relations = read.csv (paste0("./data/refugees_relations_",YEAR,"_", MONTH,".csv"), sep = ";")
+  comments  = read.csv (paste0("./data/refugees_comments_",YEAR,"_", MONTH,".csv"), sep = ";")
+  articles  = read.csv (paste0("./data/refugees_articles_",YEAR,"_", MONTH,".csv"), sep = ";")
   
   #TRANSFORM RELATIONS TO WEIGHTED SIGNED TIES
   ties = weightRelations(relations)
@@ -36,13 +28,11 @@ makeSignedGraph = function(YEAR, MONTH){
   ties_P = ties[ties[,3] > 0,]
   ties_P[,3] = floor((ties_P[,3]/TO_DIVIDE))
   ties_P = ties_P[which(ties_P[,3] != 0),]
-  # ties_P[,3] = 1
   
   #TRANSFORM NEGATIVE TIES
   ties_N = ties[ties[,3] < 0,] 
   ties_N[,3] = ceiling((ties_N[,3]/TO_DIVIDE))
   ties_N = ties_N[which(ties_N[,3] != 0),]
-  # ties_N[,3] = -1
   
   #MERGE POSITIVE AND NEGATIVE TIES TOGETHER
   ties_FIN = rbind(ties_N, ties_P)
@@ -63,7 +53,7 @@ makeSignedGraph = function(YEAR, MONTH){
     MONTH,
     YEAR,
     TO_DIVIDE,
-    length(articles_id),
+    length(unique(articles$article_id)),
     nrow(comments),
     nrow(relations),
     nrow(ties),
@@ -77,10 +67,7 @@ makeSignedGraph = function(YEAR, MONTH){
   
 }
 
-for(month in c(3:10)){
-  makeSignedGraph(2015,month)
-}
-
+#NAME STATS
 colnames(stats) = c(
   "MONTH",
   "YEAR",
@@ -95,13 +82,17 @@ colnames(stats) = c(
   "nodes",
   "edges")
 
-#BASIC ANALYSIS
-in.deg = degree(graph,v=V(graph), mode="in")+1
-plot(graph,  vertex.label=NA, vertex.size=in.deg, edge.color = "black",edge.width=abs(E(graph)$weight/2),edge.arrow.size = 0, 
-     mark.groups = NULL)
+write.csv2(stats, file = "data_stats.csv")
 
-plot(graph,  vertex.label=NA, vertex.size=log(in.deg)*2, edge.color = "black",edge.width=abs(E(graph)$weight/2),edge.arrow.size = 0, 
-     mark.groups = NULL)
 
+
+# #BASIC ANALYSIS
+# in.deg = degree(graph,v=V(graph), mode="in")+1
+# plot(graph,  vertex.label=NA, vertex.size=in.deg, edge.color = "black",edge.width=abs(E(graph)$weight/2),edge.arrow.size = 0, 
+#      mark.groups = NULL)
+# 
+# plot(graph,  vertex.label=NA, vertex.size=log(in.deg)*2, edge.color = "black",edge.width=abs(E(graph)$weight/2),edge.arrow.size = 0, 
+#      mark.groups = NULL)
+# 
 
 
