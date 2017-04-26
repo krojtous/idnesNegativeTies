@@ -1,22 +1,33 @@
 #make_graph_classic.R
 #Script makes data matrix for analysis with negative ties
 
+YEAR = 2015
+MONTH = 10
+
+stats = data.frame()
+
 
 
 makeSignedGraph = function(YEAR, MONTH){
-  TO_DIVIDE = 7
+  TO_DIVIDE = 8
   require(igraph)
   source("./functions/transformData.R")
   
   
+
   #LOAD DATA
   relations = read.csv (paste0("./../data/",YEAR,"/relations_",YEAR,"_", MONTH,".csv"), encoding="UTF-8")
   comments  = read.csv (paste0("./../data/",YEAR,"/comments_",YEAR,"_", MONTH,".csv"), encoding = "utf8")
   articles  = read.csv (paste0("./../data/",YEAR,"/articles_",YEAR,"_", MONTH,".csv"), encoding="UTF-8")
   
   
-  #SELECT CATEGORY
-  relations = relations[which(relations$category == "zahranicni"),]
+  #SELECT REFUGGE TAGS
+  # Příliv uprchlíků do Evropy
+  # Uprchlíci
+  articles_id = unique(as.vector(articles[articles$tag %in% c("Příliv uprchlíků do Evropy", "Uprchlíci"),"article_id"]))
+  
+  relations = relations[which(relations$article_id %in% articles_id),]
+  comments = comments[which(comments$article_id %in% articles_id),]
   
   #TRANSFORM RELATIONS TO WEIGHTED SIGNED TIES
   ties = weightRelations(relations)
@@ -46,13 +57,43 @@ makeSignedGraph = function(YEAR, MONTH){
   
   #EXPORT DATA
   write.graph(graph, paste0("./graphs/graph_classic_",MONTH,"_",YEAR,".txt"), "ncol")
+
+  #ADD STATS
+  stats_month = c(
+    MONTH,
+    YEAR,
+    TO_DIVIDE,
+    length(articles_id),
+    nrow(comments),
+    nrow(relations),
+    nrow(ties),
+    nrow(ties_N),
+    nrow(ties_P),
+    nrow(ties_FIN),
+    length(V(graph)),
+    length(E(graph))
+    )
+  stats = rbind(stats,stats_month)
+  
 }
 
-
-for(month in c(1:8)){
+for(month in c(3:10)){
   makeSignedGraph(2015,month)
 }
 
+colnames(stats) = c(
+  "MONTH",
+  "YEAR",
+  "TO_DIVIDE",
+  "articles",
+  "comments",
+  "relations",
+  "raw_ties",
+  "negative_ties",
+  "positive_ties",
+  "all_ties",
+  "nodes",
+  "edges")
 
 #BASIC ANALYSIS
 in.deg = degree(graph,v=V(graph), mode="in")+1
@@ -61,4 +102,6 @@ plot(graph,  vertex.label=NA, vertex.size=in.deg, edge.color = "black",edge.widt
 
 plot(graph,  vertex.label=NA, vertex.size=log(in.deg)*2, edge.color = "black",edge.width=abs(E(graph)$weight/2),edge.arrow.size = 0, 
      mark.groups = NULL)
+
+
 
